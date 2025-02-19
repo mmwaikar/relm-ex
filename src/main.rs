@@ -1,5 +1,4 @@
-use gtk::glib::clone;
-use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt};
+use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
 use relm4::{gtk, ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
 
 struct AppModel {
@@ -12,73 +11,54 @@ enum AppMsg {
     Decrement,
 }
 
-struct AppWidgets {
-    label: gtk::Label,
-}
-
+#[relm4::component]
 impl SimpleComponent for AppModel {
-
+    /// The type of data with which this component will be initialized.
+    type Init = u8;
     /// The type of the messages that this component can receive.
     type Input = AppMsg;
     /// The type of the messages that this component can send.
     type Output = ();
-    /// The type of data with which this component will be initialized.
-    type Init = u8;
-    /// The root GTK widget that this component will create.
-    type Root = gtk::Window;
-    /// A data structure that contains the widgets that you will need to update.
-    type Widgets = AppWidgets;
+    
+    view! {
+        gtk::Window {
+            set_title: Some("Counter app"),
+            set_default_width: 300,
+            set_default_height: 100,
 
-    fn init_root() -> Self::Root {
-        gtk::Window::builder()
-            .title("Counter app")
-            .default_width(300)
-            .default_height(100)
-            .build()
+            gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_spacing: 5,
+                set_margin_all: 5,
+
+                gtk::Button {
+                    set_label: "Increment",
+                    connect_clicked => AppMsg::Increment
+                },
+
+                gtk::Button::with_label("Decrement") {
+                    connect_clicked => AppMsg::Decrement
+                },
+
+                gtk::Label {
+                    #[watch]
+                    set_label: &format!("Counter: {}", model.counter),
+                    set_margin_all: 5,
+                }
+            }
+        }
     }
 
     /// Initialize the UI and model.
     fn init(
         counter: Self::Init,
-        window: Self::Root,
+        root: Self::Root,
         sender: ComponentSender<Self>,
-    ) -> relm4::ComponentParts<Self> {
+    ) -> ComponentParts<Self> {
         let model = AppModel { counter };
 
-        let vbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(5)
-            .build();
-
-        let inc_button = gtk::Button::with_label("Increment");
-        let dec_button = gtk::Button::with_label("Decrement");
-
-        let label = gtk::Label::new(Some(&format!("Counter: {}", model.counter)));
-        label.set_margin_all(5);
-
-        window.set_child(Some(&vbox));
-        vbox.set_margin_all(5);
-        vbox.append(&inc_button);
-        vbox.append(&dec_button);
-        vbox.append(&label);
-
-        inc_button.connect_clicked(clone!(
-            #[strong]
-            sender,
-            move |_| {
-                sender.input(AppMsg::Increment);
-            }
-        ));
-
-        dec_button.connect_clicked(clone!(
-            #[strong]
-            sender,
-            move |_| {
-                sender.input(AppMsg::Decrement);
-            }
-        ));
-
-        let widgets = AppWidgets { label };
+        // Insert the macro code generation here
+        let widgets = view_output!();
 
         ComponentParts { model, widgets }
     }
@@ -93,16 +73,9 @@ impl SimpleComponent for AppModel {
             }
         }
     }
-
-    /// Update the view to represent the updated model.
-    fn update_view(&self, widgets: &mut Self::Widgets, _sender: ComponentSender<Self>) {
-        widgets
-            .label
-            .set_label(&format!("Counter: {}", self.counter));
-    }
 }
 
 fn main() {
-    let app = RelmApp::new("relm4.test.simple_manual");
+    let app = RelmApp::new("relm4.test.simple");
     app.run::<AppModel>(0);
 }
