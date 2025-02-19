@@ -31,7 +31,7 @@ impl SimpleComponent for AppModel {
 
     fn init_root() -> Self::Root {
         gtk::Window::builder()
-            .title("Simple app")
+            .title("Counter app")
             .default_width(300)
             .default_height(100)
             .build()
