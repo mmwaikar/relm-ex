@@ -2,6 +2,9 @@ use gtk::glib::clone;
 use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt};
 use relm4::{gtk, ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
 
+const NEWLINE: char = '\x0A';
+const BACKSPACE: char = '\x08';
+
 #[derive(Clone, Copy, Default, PartialEq)]
 pub enum AlphabetStatus {
     #[default]
@@ -26,6 +29,14 @@ impl Key {
             status: AlphabetStatus::None,
         }
     }
+
+    fn get_str(&self) -> String {
+        match self.key {
+            NEWLINE => "Enter".to_string(),
+            BACKSPACE => "<-".to_string(),
+            _ => self.key.to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -37,13 +48,20 @@ struct KeyboardModel {
 
 impl KeyboardModel {
     fn init() -> KeyboardModel {
+
         const FIRST_ROW: &str = "qwertyuiop";
         const SECOND_ROW: &str = "asdfghjkl";
         const THIRD_ROW: &str = "zxcvbnm";
 
+        let mut tr_chars = THIRD_ROW.chars().collect::<Vec<char>>();
+        tr_chars.push(BACKSPACE);
+        tr_chars.insert(0, NEWLINE);
+        dbg!(&tr_chars);
+
         let first_row: Vec<Key> = FIRST_ROW.chars().map(|c| Key::new(c, 1)).collect();
         let second_row: Vec<Key> = SECOND_ROW.chars().map(|c| Key::new(c, 2)).collect();
-        let third_row: Vec<Key> = THIRD_ROW.chars().map(|c| Key::new(c, 3)).collect();
+        let third_row: Vec<Key> = tr_chars.into_iter().map(|c| Key::new(c, 3)).collect();
+
         KeyboardModel {
             first_row,
             second_row,
@@ -104,9 +122,10 @@ impl SimpleComponent for KeyboardModel {
             .spacing(5)
             .build();
         f_hbox.set_margin_all(5);
+        f_hbox.set_align(gtk::Align::Center);
 
         for &key in &model.first_row {
-            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            let button = gtk::Button::with_label(&key.get_str());
             button.connect_clicked(clone!(
                 #[strong]
                 sender,
@@ -123,9 +142,10 @@ impl SimpleComponent for KeyboardModel {
             .spacing(5)
             .build();
         s_hbox.set_margin_all(5);
+        s_hbox.set_align(gtk::Align::Center);
 
         for &key in &model.second_row {
-            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            let button = gtk::Button::with_label(&key.get_str());
             button.connect_clicked(clone!(
                 #[strong]
                 sender,
@@ -142,9 +162,10 @@ impl SimpleComponent for KeyboardModel {
             .spacing(5)
             .build();
         t_hbox.set_margin_all(5);
+        t_hbox.set_align(gtk::Align::Center);
 
         for &key in &model.third_row {
-            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            let button = gtk::Button::with_label(&key.get_str());
             button.connect_clicked(clone!(
                 #[strong]
                 sender,
