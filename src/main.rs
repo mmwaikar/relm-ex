@@ -1,81 +1,186 @@
-use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
+use gtk::glib::clone;
+use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt};
 use relm4::{gtk, ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
 
-struct AppModel {
-    counter: u8,
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum AlphabetStatus {
+    #[default]
+    None,
+    Absent,
+    IncorrectPosition,
+    CorrectPosition,
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+pub struct Key {
+    pub key: char,
+    pub row: usize,
+    pub status: AlphabetStatus,
+}
+
+impl Key {
+    fn new(key: char, row: usize) -> Key {
+        Key {
+            key,
+            row,
+            status: AlphabetStatus::None,
+        }
+    }
+}
+
+#[derive(Clone, Default, PartialEq)]
+struct KeyboardModel {
+    pub first_row: Vec<Key>,
+    pub second_row: Vec<Key>,
+    pub third_row: Vec<Key>,
+}
+
+impl KeyboardModel {
+    fn init() -> KeyboardModel {
+        const FIRST_ROW: &str = "qwertyuiop";
+        const SECOND_ROW: &str = "asdfghjkl";
+        const THIRD_ROW: &str = "zxcvbnm";
+
+        let first_row: Vec<Key> = FIRST_ROW.chars().map(|c| Key::new(c, 1)).collect();
+        let second_row: Vec<Key> = SECOND_ROW.chars().map(|c| Key::new(c, 2)).collect();
+        let third_row: Vec<Key> = THIRD_ROW.chars().map(|c| Key::new(c, 3)).collect();
+        KeyboardModel {
+            first_row,
+            second_row,
+            third_row,
+        }
+    }
 }
 
 #[derive(Debug)]
-enum AppMsg {
-    Increment,
-    Decrement,
+pub enum KeyboardMsg {
+    KeyPressed(char),
+    // Enter,
+    // Backspace,
 }
 
-#[relm4::component]
-impl SimpleComponent for AppModel {
-    /// The type of data with which this component will be initialized.
-    type Init = u8;
+struct AppWidgets {
+    label: gtk::Label,
+}
+
+impl SimpleComponent for KeyboardModel {
     /// The type of the messages that this component can receive.
-    type Input = AppMsg;
+    type Input = KeyboardMsg;
     /// The type of the messages that this component can send.
     type Output = ();
-    
-    view! {
-        gtk::Window {
-            set_title: Some("Counter app"),
-            set_default_width: 300,
-            set_default_height: 100,
+    /// The type of data with which this component will be initialized.
+    type Init = KeyboardModel;
+    /// The root GTK widget that this component will create.
+    type Root = gtk::Window;
+    /// A data structure that contains the widgets that you will need to update.
+    type Widgets = AppWidgets;
 
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
-                set_margin_all: 5,
-
-                gtk::Button {
-                    set_label: "Increment",
-                    connect_clicked => AppMsg::Increment
-                },
-
-                gtk::Button::with_label("Decrement") {
-                    connect_clicked => AppMsg::Decrement
-                },
-
-                gtk::Label {
-                    #[watch]
-                    set_label: &format!("Counter: {}", model.counter),
-                    set_margin_all: 5,
-                }
-            }
-        }
+    fn init_root() -> Self::Root {
+        gtk::Window::builder()
+            .title("Wordle")
+            .default_width(300)
+            .default_height(500)
+            .build()
     }
 
     /// Initialize the UI and model.
     fn init(
-        counter: Self::Init,
-        root: Self::Root,
+        kb_model: Self::Init,
+        window: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = AppModel { counter };
+        let model = KeyboardModel::init();
 
-        // Insert the macro code generation here
-        let widgets = view_output!();
+        let label = gtk::Label::new(Some(&format!("Counter:")));
+        label.set_margin_all(5);
+
+        let vbox = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .spacing(5)
+            .build();
+
+        let f_hbox = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(5)
+            .build();
+        f_hbox.set_margin_all(5);
+
+        for &key in &model.first_row {
+            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            button.connect_clicked(clone!(
+                #[strong]
+                sender,
+                move |_| {
+                    sender.input(KeyboardMsg::KeyPressed(' '));
+                }
+            ));
+
+            f_hbox.append(&button);
+        }
+
+        let s_hbox = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(5)
+            .build();
+        s_hbox.set_margin_all(5);
+
+        for &key in &model.second_row {
+            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            button.connect_clicked(clone!(
+                #[strong]
+                sender,
+                move |_| {
+                    sender.input(KeyboardMsg::KeyPressed(' '));
+                }
+            ));
+
+            s_hbox.append(&button);
+        }
+
+        let t_hbox = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(5)
+            .build();
+        t_hbox.set_margin_all(5);
+
+        for &key in &model.third_row {
+            let button = gtk::Button::with_label(key.key.to_string().as_str());
+            button.connect_clicked(clone!(
+                #[strong]
+                sender,
+                move |_| {
+                    sender.input(KeyboardMsg::KeyPressed(' '));
+                }
+            ));
+
+            t_hbox.append(&button);
+        }
+
+        window.set_child(Some(&vbox));
+        vbox.set_margin_all(5);
+        vbox.set_align(gtk::Align::Center);
+        vbox.append(&f_hbox);
+        vbox.append(&s_hbox);
+        vbox.append(&t_hbox);
+
+        let widgets = AppWidgets { label };
 
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            AppMsg::Increment => {
-                self.counter = self.counter.wrapping_add(1);
-            }
-            AppMsg::Decrement => {
-                self.counter = self.counter.wrapping_sub(1);
-            }
+            KeyboardMsg::KeyPressed(c) => {
+                println!("key pressed: {}", c);
+                // self.counter = self.counter.wrapping_add(1);
+            } // KeyboardMsg::Decrement => {
+              //     self.counter = self.counter.wrapping_sub(1);
+              // }
         }
     }
 }
 
 fn main() {
     let app = RelmApp::new("relm4.test.simple");
-    app.run::<AppModel>(0);
+    app.run::<KeyboardModel>(KeyboardModel::init());
 }
