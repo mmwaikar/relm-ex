@@ -1,207 +1,225 @@
-use gtk::glib::clone;
-use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt};
-use relm4::{gtk, ComponentParts, ComponentSender, RelmApp, RelmWidgetExt, SimpleComponent};
+use gtk::prelude::{
+    ApplicationExt, ButtonExt, DialogExt, GtkWindowExt, ToggleButtonExt, WidgetExt,
+};
+use relm4::*;
 
-const NEWLINE: char = '\x0A';
-const BACKSPACE: char = '\x08';
+struct HeaderModel;
 
-#[derive(Clone, Copy, Default, PartialEq)]
-pub enum AlphabetStatus {
-    #[default]
-    None,
-    Absent,
-    IncorrectPosition,
-    CorrectPosition,
+#[derive(Debug)]
+enum HeaderOutput {
+    View,
+    Edit,
+    Export,
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
-pub struct Key {
-    pub key: char,
-    pub row: usize,
-    pub status: AlphabetStatus,
-}
+#[relm4::component]
+impl SimpleComponent for HeaderModel {
+    type Init = ();
+    type Input = ();
+    type Output = HeaderOutput;
 
-impl Key {
-    fn new(key: char, row: usize) -> Key {
-        Key {
-            key,
-            row,
-            status: AlphabetStatus::None,
+    view! {
+        #[root]
+        gtk::HeaderBar {
+            #[wrap(Some)]
+            set_title_widget = &gtk::Box {
+                add_css_class: "linked",
+                #[name = "group"]
+                gtk::ToggleButton {
+                    set_label: "View",
+                    set_active: true,
+                    connect_toggled[sender] => move |btn| {
+                        if btn.is_active() {
+                            sender.output(HeaderOutput::View).unwrap()
+                        }
+                    },
+                },
+                gtk::ToggleButton {
+                    set_label: "Edit",
+                    set_group: Some(&group),
+                    connect_toggled[sender] => move |btn| {
+                        if btn.is_active() {
+                            sender.output(HeaderOutput::Edit).unwrap()
+                        }
+                    },
+                },
+                gtk::ToggleButton {
+                    set_label: "Export",
+                    set_group: Some(&group),
+                    connect_toggled[sender] => move |btn| {
+                        if btn.is_active() {
+                            sender.output(HeaderOutput::Export).unwrap()
+                        }
+                    },
+                },
+            }
         }
     }
 
-    fn get_str(&self) -> String {
-        match self.key {
-            NEWLINE => "Enter".to_string(),
-            BACKSPACE => "<-".to_string(),
-            _ => self.key.to_string(),
-        }
+    fn init(
+        _params: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = HeaderModel;
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
     }
 }
 
-#[derive(Clone, Default, PartialEq)]
-struct KeyboardModel {
-    pub first_row: Vec<Key>,
-    pub second_row: Vec<Key>,
-    pub third_row: Vec<Key>,
+struct DialogModel {
+    hidden: bool,
 }
 
-impl KeyboardModel {
-    fn init() -> KeyboardModel {
+#[derive(Debug)]
+enum DialogInput {
+    Show,
+    Accept,
+    Cancel,
+}
 
-        const FIRST_ROW: &str = "qwertyuiop";
-        const SECOND_ROW: &str = "asdfghjkl";
-        const THIRD_ROW: &str = "zxcvbnm";
+#[derive(Debug)]
+enum DialogOutput {
+    Close,
+}
 
-        let mut tr_chars = THIRD_ROW.chars().collect::<Vec<char>>();
-        tr_chars.push(BACKSPACE);
-        tr_chars.insert(0, NEWLINE);
-        dbg!(&tr_chars);
+#[relm4::component]
+impl SimpleComponent for DialogModel {
+    type Init = bool;
+    type Input = DialogInput;
+    type Output = DialogOutput;
 
-        let first_row: Vec<Key> = FIRST_ROW.chars().map(|c| Key::new(c, 1)).collect();
-        let second_row: Vec<Key> = SECOND_ROW.chars().map(|c| Key::new(c, 2)).collect();
-        let third_row: Vec<Key> = tr_chars.into_iter().map(|c| Key::new(c, 3)).collect();
+    view! {
+        gtk::MessageDialog {
+            set_modal: true,
+            #[watch]
+            set_visible: !model.hidden,
+            set_text: Some("Do you want to close before saving?"),
+            set_secondary_text: Some("All unsaved changes will be lost"),
+            add_button: ("Close", gtk::ResponseType::Accept),
+            add_button: ("Cancel", gtk::ResponseType::Cancel),
+            connect_response[sender] => move |_, resp| {
+                sender.input(if resp == gtk::ResponseType::Accept {
+                    DialogInput::Accept
+                } else {
+                    DialogInput::Cancel
+                })
+            }
+        }
+    }
 
-        KeyboardModel {
-            first_row,
-            second_row,
-            third_row,
+    fn init(
+        params: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let model = DialogModel { hidden: params };
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+            DialogInput::Show => self.hidden = false,
+            DialogInput::Accept => {
+                self.hidden = true;
+                sender.output(DialogOutput::Close).unwrap()
+            }
+            DialogInput::Cancel => self.hidden = true,
         }
     }
 }
 
 #[derive(Debug)]
-pub enum KeyboardMsg {
-    KeyPressed(char),
-    // Enter,
-    // Backspace,
+enum AppMode {
+    View,
+    Edit,
+    Export,
 }
 
-struct AppWidgets {
-    label: gtk::Label,
+#[derive(Debug)]
+enum AppMsg {
+    SetMode(AppMode),
+    CloseRequest,
+    Close,
 }
 
-impl SimpleComponent for KeyboardModel {
-    /// The type of the messages that this component can receive.
-    type Input = KeyboardMsg;
-    /// The type of the messages that this component can send.
+struct AppModel {
+    mode: AppMode,
+    header: Controller<HeaderModel>,
+    dialog: Controller<DialogModel>,
+}
+
+#[relm4::component]
+impl SimpleComponent for AppModel {
+    type Init = AppMode;
+    type Input = AppMsg;
     type Output = ();
-    /// The type of data with which this component will be initialized.
-    type Init = KeyboardModel;
-    /// The root GTK widget that this component will create.
-    type Root = gtk::Window;
-    /// A data structure that contains the widgets that you will need to update.
-    type Widgets = AppWidgets;
 
-    fn init_root() -> Self::Root {
-        gtk::Window::builder()
-            .title("Wordle")
-            .default_width(300)
-            .default_height(500)
-            .build()
+    view! {
+        main_window = gtk::Window {
+            set_default_width: 500,
+            set_default_height: 250,
+            set_titlebar: Some(model.header.widget()),
+
+            gtk::Label {
+                #[watch]
+                set_label: &format!("Placeholder for {:?}", model.mode),
+            },
+            connect_close_request[sender] => move |_| {
+                sender.input(AppMsg::CloseRequest);
+                gtk::glib::Propagation::Stop
+            }
+        }
     }
 
-    /// Initialize the UI and model.
     fn init(
-        kb_model: Self::Init,
-        window: Self::Root,
+        params: Self::Init,
+        root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = KeyboardModel::init();
+        let header: Controller<HeaderModel> =
+            HeaderModel::builder()
+                .launch(())
+                .forward(sender.input_sender(), |msg| match msg {
+                    HeaderOutput::View => AppMsg::SetMode(AppMode::View),
+                    HeaderOutput::Edit => AppMsg::SetMode(AppMode::Edit),
+                    HeaderOutput::Export => AppMsg::SetMode(AppMode::Export),
+                });
 
-        let label = gtk::Label::new(Some(&format!("Counter:")));
-        label.set_margin_all(5);
+        let dialog = DialogModel::builder()
+            .transient_for(&root)
+            .launch(true)
+            .forward(sender.input_sender(), |msg| match msg {
+                DialogOutput::Close => AppMsg::Close,
+            });
 
-        let vbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(5)
-            .build();
+        let model = AppModel {
+            mode: params,
+            header,
+            dialog,
+        };
 
-        let f_hbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(5)
-            .build();
-        f_hbox.set_margin_all(5);
-        f_hbox.set_align(gtk::Align::Center);
-
-        for &key in &model.first_row {
-            let button = gtk::Button::with_label(&key.get_str());
-            button.connect_clicked(clone!(
-                #[strong]
-                sender,
-                move |_| {
-                    sender.input(KeyboardMsg::KeyPressed(' '));
-                }
-            ));
-
-            f_hbox.append(&button);
-        }
-
-        let s_hbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(5)
-            .build();
-        s_hbox.set_margin_all(5);
-        s_hbox.set_align(gtk::Align::Center);
-
-        for &key in &model.second_row {
-            let button = gtk::Button::with_label(&key.get_str());
-            button.connect_clicked(clone!(
-                #[strong]
-                sender,
-                move |_| {
-                    sender.input(KeyboardMsg::KeyPressed(' '));
-                }
-            ));
-
-            s_hbox.append(&button);
-        }
-
-        let t_hbox = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(5)
-            .build();
-        t_hbox.set_margin_all(5);
-        t_hbox.set_align(gtk::Align::Center);
-
-        for &key in &model.third_row {
-            let button = gtk::Button::with_label(&key.get_str());
-            button.connect_clicked(clone!(
-                #[strong]
-                sender,
-                move |_| {
-                    sender.input(KeyboardMsg::KeyPressed(' '));
-                }
-            ));
-
-            t_hbox.append(&button);
-        }
-
-        window.set_child(Some(&vbox));
-        vbox.set_margin_all(5);
-        vbox.set_align(gtk::Align::Center);
-        vbox.append(&f_hbox);
-        vbox.append(&s_hbox);
-        vbox.append(&t_hbox);
-
-        let widgets = AppWidgets { label };
-
+        let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
-        match message {
-            KeyboardMsg::KeyPressed(c) => {
-                println!("key pressed: {}", c);
-                // self.counter = self.counter.wrapping_add(1);
-            } // KeyboardMsg::Decrement => {
-              //     self.counter = self.counter.wrapping_sub(1);
-              // }
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+        match msg {
+            AppMsg::SetMode(mode) => {
+                self.mode = mode;
+            }
+            AppMsg::CloseRequest => {
+                self.dialog.sender().send(DialogInput::Show).unwrap();
+            }
+            AppMsg::Close => {
+                relm4::main_application().quit();
+            }
         }
     }
 }
 
 fn main() {
-    let app = RelmApp::new("relm4.test.simple");
-    app.run::<KeyboardModel>(KeyboardModel::init());
+    let relm = RelmApp::new("relm4.test.components");
+    relm.run::<AppModel>(AppMode::Edit);
 }
