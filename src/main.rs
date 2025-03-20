@@ -61,7 +61,7 @@ pub struct CharInput {
 #[relm4::component]
 impl SimpleComponent for ButtonModel {
     /// The type of data with which this component will be initialized.
-    type Init = char;
+    type Init = ButtonModel;
     /// The type of the messages that this component can receive.
     type Input = ButtonPressedMsg;
     /// The type of the messages that this component can send.
@@ -77,11 +77,10 @@ impl SimpleComponent for ButtonModel {
 
     // Initialize the UI.
     fn init(
-        button_text: Self::Init,
+        model: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let model = ButtonModel { text: button_text };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
@@ -161,7 +160,7 @@ impl SimpleComponent for AppModel {
     ) -> ComponentParts<Self> {
         let button: Controller<ButtonModel> =
             ButtonModel::builder()
-                .launch('w')
+                .launch(ButtonModel::new('r'))
                 .forward(sender.input_sender(), |msg| {
                     println!("key pressed: {}", msg.text);
                     AppMsg::SetMode(AppMode::View)
