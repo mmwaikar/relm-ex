@@ -2,8 +2,8 @@ use gtk::prelude::*;
 use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent};
 use relm4::*;
 
-const NEWLINE: char = '\x0A';
-const BACKSPACE: char = '\x08';
+pub const NEWLINE: char = '\x0A';
+pub const BACKSPACE: char = '\x08';
 
 #[tracker::track]
 struct Guess {
@@ -47,8 +47,8 @@ impl ButtonModel {
 #[derive(Debug)]
 pub enum ButtonPressedMsg {
     ButtonPressed,
-    // Enter,
-    // Backspace,
+    Enter,
+    Backspace,
 }
 
 #[derive(Debug)]
@@ -68,8 +68,12 @@ impl SimpleComponent for ButtonModel {
     view! {
         #[root]
         gtk::Button {
-            set_label: model.text.to_string().as_str(),
-            connect_clicked => ButtonPressedMsg::ButtonPressed
+            set_label: model.get_str().as_str(),
+            connect_clicked => match model.text {
+                NEWLINE => ButtonPressedMsg::Enter,
+                BACKSPACE => ButtonPressedMsg::Backspace,
+                _ => ButtonPressedMsg::ButtonPressed,
+            }
         }
     }
 
@@ -85,9 +89,15 @@ impl SimpleComponent for ButtonModel {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
+            ButtonPressedMsg::Enter => {
+                println!("enter button pressed (from within the component): {}", self.get_str());
+            },
+            ButtonPressedMsg::Backspace => {
+                println!("delete button pressed (from within the component): {}", self.get_str());
+            },
             ButtonPressedMsg::ButtonPressed => {
-                println!("button pressed (from within the component): {}", self.text);
-            }
+                println!("regular button pressed (from within the component): {}", self.get_str());
+            },
         }
     }
 }

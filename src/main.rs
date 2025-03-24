@@ -1,10 +1,13 @@
 mod button;
 mod keyboard;
+mod keyboard_row;
 
 use button::ButtonModel;
 use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
-use relm4::{gtk, ComponentParts, ComponentSender, Controller, RelmApp, RelmWidgetExt, SimpleComponent};
 use relm4::*;
+use relm4::{
+    ComponentParts, ComponentSender, Controller, SimpleComponent,
+};
 
 #[derive(Debug)]
 enum AppMode {
@@ -16,6 +19,8 @@ enum AppMode {
 struct AppModel {
     counter: u8,
     button: Controller<ButtonModel>,
+    enter: Controller<ButtonModel>,
+    backspace: Controller<ButtonModel>,
 }
 
 #[derive(Debug)]
@@ -59,6 +64,8 @@ impl SimpleComponent for AppModel {
                 },
 
                 model.button.widget(),
+                model.enter.widget(),
+                model.backspace.widget(),
             }
         }
     }
@@ -69,15 +76,26 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let button: Controller<ButtonModel> =
-            ButtonModel::builder()
-                .launch(ButtonModel::new('r'))
-                .forward(sender.input_sender(), |msg| {
-                    println!("key pressed: {}", msg.text);
-                    AppMsg::SetMode(AppMode::View)
-                });
+        let button: Controller<ButtonModel> = ButtonModel::builder()
+            .launch(ButtonModel::new('r'))
+            .forward(sender.input_sender(), |msg| {
+                println!("key pressed: {}", msg.text);
+                AppMsg::SetMode(AppMode::View)
+            });
+        let enter: Controller<ButtonModel> = ButtonModel::builder()
+            .launch(ButtonModel::new(button::NEWLINE))
+            .forward(sender.input_sender(), |msg| {
+                println!("key pressed: {}", msg.text);
+                AppMsg::SetMode(AppMode::View)
+            });
+        let backspace: Controller<ButtonModel> = ButtonModel::builder()
+            .launch(ButtonModel::new(button::BACKSPACE))
+            .forward(sender.input_sender(), |msg| {
+                println!("key pressed: {}", msg.text);
+                AppMsg::SetMode(AppMode::View)
+            });
 
-        let model = AppModel { counter, button };
+        let model = AppModel { counter, button, enter, backspace };
 
         // Insert the macro code generation here
         let widgets = view_output!();
