@@ -1,99 +1,10 @@
+mod button;
 mod keyboard;
 
+use button::ButtonModel;
 use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
 use relm4::{gtk, ComponentParts, ComponentSender, Controller, RelmApp, RelmWidgetExt, SimpleComponent};
 use relm4::*;
-
-const NEWLINE: char = '\x0A';
-const BACKSPACE: char = '\x08';
-
-#[tracker::track]
-struct Guess {
-    word: String,
-}
-
-// #[derive(Clone, Copy, Debug, Default, PartialEq)]
-// enum ButtonStatus {
-//     #[default]
-//     None,
-//     Absent,
-//     IncorrectPosition,
-//     CorrectPosition,
-// }
-
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-struct ButtonModel {
-    text: char,
-    // row: usize,
-    // status: ButtonStatus,
-}
-
-impl ButtonModel {
-    pub fn new(text: char) -> ButtonModel {
-        ButtonModel {
-            text,
-            // row,
-            // status: ButtonStatus::None,
-        }
-    }
-
-    pub fn get_str(&self) -> String {
-        match self.text {
-            NEWLINE => "Enter".to_string(),
-            BACKSPACE => "<-".to_string(),
-            _ => self.text.to_string(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ButtonPressedMsg {
-    ButtonPressed,
-    // Enter,
-    // Backspace,
-}
-
-#[derive(Debug)]
-pub struct CharInput {
-    pub text: char,
-}
-
-#[relm4::component]
-impl SimpleComponent for ButtonModel {
-    /// The type of data with which this component will be initialized.
-    type Init = ButtonModel;
-    /// The type of the messages that this component can receive.
-    type Input = ButtonPressedMsg;
-    /// The type of the messages that this component can send.
-    type Output = CharInput;
-
-    view! {
-        #[root]
-        gtk::Button {
-            set_label: model.text.to_string().as_str(),
-            connect_clicked => ButtonPressedMsg::ButtonPressed
-        }
-    }
-
-    // Initialize the UI.
-    fn init(
-        model: Self::Init,
-        root: Self::Root,
-        sender: ComponentSender<Self>,
-    ) -> ComponentParts<Self> {
-        let widgets = view_output!();
-        ComponentParts { model, widgets }
-    }
-
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
-        match msg {
-            ButtonPressedMsg::ButtonPressed => {
-                println!("key pressed: {}", self.text);
-                // self.counter = self.counter.wrapping_add(1);
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 enum AppMode {
