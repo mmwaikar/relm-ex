@@ -10,28 +10,28 @@ struct Guess {
     word: String,
 }
 
-// #[derive(Clone, Copy, Debug, Default, PartialEq)]
-// enum ButtonStatus {
-//     #[default]
-//     None,
-//     Absent,
-//     IncorrectPosition,
-//     CorrectPosition,
-// }
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum ButtonStatus {
+    #[default]
+    None,
+    Absent,
+    IncorrectPosition,
+    CorrectPosition,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ButtonModel {
     pub text: char,
-    // row: usize,
-    // status: ButtonStatus,
+    pub row: usize,
+    pub status: ButtonStatus,
 }
 
 impl ButtonModel {
-    pub fn new(text: char) -> ButtonModel {
+    pub fn new(text: char, row: usize) -> ButtonModel {
         ButtonModel {
             text,
-            // row,
-            // status: ButtonStatus::None,
+            row,
+            status: ButtonStatus::None,
         }
     }
 

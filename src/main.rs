@@ -1,9 +1,11 @@
 mod button;
 mod keyboard;
-mod keyboard_row;
+// mod keyboard_row;
 
 use button::ButtonModel;
 use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
+use keyboard::KeyboardOutput;
+use prelude::FactoryVecDeque;
 use relm4::*;
 use relm4::{
     ComponentParts, ComponentSender, Controller, SimpleComponent,
@@ -18,19 +20,17 @@ enum AppMode {
 
 struct AppModel {
     counter: u8,
-    button: Controller<ButtonModel>,
-    enter: Controller<ButtonModel>,
-    backspace: Controller<ButtonModel>,
+    buttons: FactoryVecDeque<ButtonModel>,
 }
 
 #[derive(Debug)]
 enum AppMsg {
-    SetMode(AppMode),
-    Increment,
-    Decrement,
+    CharAdded,
+    CharRemoved,
+    WordAccepted,
 }
 
-#[relm4::component]
+#[relm4::component(pub)]
 impl SimpleComponent for AppModel {
     type Init = u8;
 
@@ -48,24 +48,17 @@ impl SimpleComponent for AppModel {
                 set_spacing: 5,
                 set_margin_all: 5,
 
-                gtk::Button {
-                    set_label: "Increment",
-                    connect_clicked => AppMsg::Increment
-                },
-
-                gtk::Button::with_label("Decrement") {
-                    connect_clicked => AppMsg::Decrement
-                },
-
                 gtk::Label {
                     #[watch]
                     set_label: &format!("Counter: {}", model.counter),
                     set_margin_all: 5,
                 },
 
-                model.button.widget(),
-                model.enter.widget(),
-                model.backspace.widget(),
+                #[local_ref]
+                counter_box -> gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 5,
+                }
             }
         }
     }
@@ -76,42 +69,35 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let button: Controller<ButtonModel> = ButtonModel::builder()
-            .launch(ButtonModel::new('r'))
-            .forward(sender.input_sender(), |msg| {
-                println!("key pressed: {}", msg.text);
-                AppMsg::SetMode(AppMode::View)
-            });
-        let enter: Controller<ButtonModel> = ButtonModel::builder()
-            .launch(ButtonModel::new(button::NEWLINE))
-            .forward(sender.input_sender(), |msg| {
-                println!("key pressed: {}", msg.text);
-                AppMsg::SetMode(AppMode::View)
-            });
-        let backspace: Controller<ButtonModel> = ButtonModel::builder()
-            .launch(ButtonModel::new(button::BACKSPACE))
-            .forward(sender.input_sender(), |msg| {
-                println!("key pressed: {}", msg.text);
-                AppMsg::SetMode(AppMode::View)
+        let buttons = FactoryVecDeque::builder()
+            .launch(gtk::Box::default())
+            .forward(sender.input_sender(), |output| match output {
+                KeyboardOutput::CharAdded => AppMsg::CharAdded,
+                KeyboardOutput::CharRemoved => AppMsg::CharRemoved,
+                KeyboardOutput::WordAccepted => AppMsg::WordAccepted,
             });
 
-        let model = AppModel { counter, button, enter, backspace };
+        let model = AppModel {
+            counter,
+            buttons,
+        };
 
-        // Insert the macro code generation here
+        let counter_box = model.buttons.widget();
         let widgets = view_output!();
+
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            AppMsg::Increment => {
+            AppMsg::CharAdded => {
                 self.counter = self.counter.wrapping_add(1);
             }
-            AppMsg::Decrement => {
+            AppMsg::CharRemoved => {
                 self.counter = self.counter.wrapping_sub(1);
             }
-            AppMsg::SetMode(m) => {
-                println!("set mode: {:?}", m);
+            AppMsg::WordAccepted => {
+                println!("word accepted");
             }
         }
     }
