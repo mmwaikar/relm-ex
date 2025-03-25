@@ -25,22 +25,22 @@ impl FactoryComponent for ButtonModel {
             set_orientation: gtk::Orientation::Horizontal,
             set_spacing: 10,
 
-            #[name(label)]
-            gtk::Label {
-                #[watch]
-                set_label: &self.text.to_string(),
-                set_width_chars: 3,
-            },
-
-            // #[name(r_button)]
-            // gtk::Button {
-            //     set_label: &self.get_str().as_str(),
-            //     connect_clicked => match &self.text {
-            //         &button::NEWLINE => ButtonPressedMsg::Enter,
-            //         &button::BACKSPACE => ButtonPressedMsg::Backspace,
-            //         _ => ButtonPressedMsg::ButtonPressed,
-            //     },
+            // #[name(label)]
+            // gtk::Label {
+            //     #[watch]
+            //     set_label: &self.text.to_string(),
+            //     set_width_chars: 3,
             // },
+
+            #[name(r_button)]
+            gtk::Button {
+                set_label: self.get_str().as_str(),
+                connect_clicked => match self.text {
+                    '\x0A' => ButtonPressedMsg::Enter,
+                    '\x08' => ButtonPressedMsg::Backspace,
+                    _ => ButtonPressedMsg::ButtonPressed,
+                },
+            },
         }
     }
 

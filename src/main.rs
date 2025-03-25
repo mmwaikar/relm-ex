@@ -7,9 +7,7 @@ use gtk::prelude::{BoxExt, ButtonExt, GtkWindowExt, OrientableExt};
 use keyboard::KeyboardOutput;
 use prelude::FactoryVecDeque;
 use relm4::*;
-use relm4::{
-    ComponentParts, ComponentSender, Controller, SimpleComponent,
-};
+use relm4::{ComponentParts, ComponentSender, Controller, SimpleComponent};
 
 #[derive(Debug)]
 enum AppMode {
@@ -20,7 +18,9 @@ enum AppMode {
 
 struct AppModel {
     counter: u8,
-    buttons: FactoryVecDeque<ButtonModel>,
+    first_row: FactoryVecDeque<ButtonModel>,
+    second_row: FactoryVecDeque<ButtonModel>,
+    third_row: FactoryVecDeque<ButtonModel>,
 }
 
 #[derive(Debug)]
@@ -55,8 +55,20 @@ impl SimpleComponent for AppModel {
                 },
 
                 #[local_ref]
-                counter_box -> gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
+                first_box -> gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+                },
+
+                #[local_ref]
+                second_box -> gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: 5,
+                },
+
+                #[local_ref]
+                third_box -> gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
                     set_spacing: 5,
                 }
             }
@@ -69,20 +81,56 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let buttons = FactoryVecDeque::builder()
+        const FIRST_ROW: &str = "qwertyuiop";
+        const SECOND_ROW: &str = "asdfghjkl";
+        const THIRD_ROW: &str = "zxcvbnm";
+
+        let mut first_row = FactoryVecDeque::builder()
             .launch(gtk::Box::default())
             .forward(sender.input_sender(), |output| match output {
                 KeyboardOutput::CharAdded => AppMsg::CharAdded,
                 KeyboardOutput::CharRemoved => AppMsg::CharRemoved,
                 KeyboardOutput::WordAccepted => AppMsg::WordAccepted,
             });
+        let fr_bms: Vec<ButtonModel> = FIRST_ROW.chars().map(|c| ButtonModel::new(c, 0)).collect();
+        fr_bms.iter().for_each(|bm| {
+            first_row.guard().push_back(*bm);
+        });
+
+        let mut second_row = FactoryVecDeque::builder()
+            .launch(gtk::Box::default())
+            .forward(sender.input_sender(), |output| match output {
+                KeyboardOutput::CharAdded => AppMsg::CharAdded,
+                KeyboardOutput::CharRemoved => AppMsg::CharRemoved,
+                KeyboardOutput::WordAccepted => AppMsg::WordAccepted,
+            });
+        let sr_bms: Vec<ButtonModel> = SECOND_ROW.chars().map(|c| ButtonModel::new(c, 0)).collect();
+        sr_bms.iter().for_each(|bm| {
+            second_row.guard().push_back(*bm);
+        });
+
+        let mut third_row = FactoryVecDeque::builder()
+            .launch(gtk::Box::default())
+            .forward(sender.input_sender(), |output| match output {
+                KeyboardOutput::CharAdded => AppMsg::CharAdded,
+                KeyboardOutput::CharRemoved => AppMsg::CharRemoved,
+                KeyboardOutput::WordAccepted => AppMsg::WordAccepted,
+            });
+        let fr_bms: Vec<ButtonModel> = THIRD_ROW.chars().map(|c| ButtonModel::new(c, 0)).collect();
+        fr_bms.iter().for_each(|bm| {
+            third_row.guard().push_back(*bm);
+        });
 
         let model = AppModel {
             counter,
-            buttons,
+            first_row,
+            second_row,
+            third_row,
         };
 
-        let counter_box = model.buttons.widget();
+        let first_box = model.first_row.widget();
+        let second_box = model.second_row.widget();
+        let third_box = model.third_row.widget();
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

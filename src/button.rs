@@ -4,6 +4,8 @@ use relm4::*;
 
 pub const NEWLINE: char = '\x0A';
 pub const BACKSPACE: char = '\x08';
+pub const ENTER: &str = "Enter";
+pub const DELETE: &str = "<-";
 
 #[tracker::track]
 struct Guess {
@@ -37,8 +39,8 @@ impl ButtonModel {
 
     pub fn get_str(&self) -> String {
         match self.text {
-            NEWLINE => "Enter".to_string(),
-            BACKSPACE => "<-".to_string(),
+            NEWLINE => ENTER.to_string(),
+            BACKSPACE => DELETE.to_string(),
             _ => self.text.to_string(),
         }
     }
